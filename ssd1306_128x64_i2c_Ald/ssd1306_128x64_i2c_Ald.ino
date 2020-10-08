@@ -1,4 +1,24 @@
-#include <SPI.h>
+/**************************************************************************
+ This is an example for our Monochrome OLEDs based on SSD1306 drivers
+
+ Pick one up today in the adafruit shop!
+ ------> http://www.adafruit.com/category/63_98
+
+ This example is for a 128x64 pixel display using I2C to communicate
+ 3 pins are required to interface (two I2C and one reset).
+
+ Adafruit invests time and resources providing this open
+ source code, please support Adafruit and open-source
+ hardware by purchasing products from Adafruit!
+
+ Written by Limor Fried/Ladyada for Adafruit Industries,
+ with contributions from the open source community.
+ BSD license, check license.txt for more information
+ All text above, and the splash screen below must be
+ included in any redistribution.
+ **************************************************************************/
+
+//#include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -10,10 +30,6 @@
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define NUMFLAKES     10 // Number of snowflakes in the animation example
-
-#define LOGO_HEIGHT   16
-#define LOGO_WIDTH    16
 
 void setup() {
   Serial.begin(9600);
@@ -39,28 +55,31 @@ void setup() {
   // drawing commands to make them visible on screen!
   display.display();
   delay(2000);
-  // display.display() is NOT necessary after every single drawing command,
-  // unless that's what you want...rather, you can batch up a bunch of
-  // drawing operations and then update the screen all at once by calling
-  // display.display(). These examples demonstrate both approaches...
+
 
   testdrawchar();      // Draw characters of the default font
+
+  Serial.println(F("Fin du setup"));
+
+
 }
 
 void loop() {
 }
+
+
 
 void testdrawchar(void) {
   display.clearDisplay();
 
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);     // Start at top-left corner
+  display.setCursor(1, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  display.write("Adresse ip :\r\n 192.168.0.4 \r\n");
-  display.write("Temperature :\r\n 25 deg \r\n");
-  display.write("Prochaine activation de la pompe :\r\n 2 heures \r\n");
+  display.write("Temperature : 30 deg");
+  
+  
 
   display.display();
   delay(2000);
