@@ -1,36 +1,30 @@
-/*********
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com  
-*********/
+#include <WiFiManager.h>
 
-#include <OneWire.h>
-#include <DallasTemperature.h>
+WiFiManager wm;
+const char* ssid = "test";
+const char* password = "cegenredemdp";
 
-// GPIO where the DS18B20 is connected to
-const int oneWireBus = 4;     
-
-// Setup a oneWire instance to communicate with any OneWire devices
-OneWire oneWire(oneWireBus);
-
-// Pass our oneWire reference to Dallas Temperature sensor 
-DallasTemperature sensors(&oneWire);
-
-void setup() {
-  // Start the Serial Monitor
+void setup()
+{
+  WiFi.mode(WIFI_STA);
+  
   Serial.begin(115200);
-  // Start the DS18B20 sensor
-  sensors.begin();
-  Serial.println("test1");
+  delay(1000);
+  Serial.println("\n");
+  
+  if(!wm.autoConnect(ssid, password))
+    Serial.println("Erreur de connexion.");
+  else
+    Serial.println("Connexion etablie!");
 }
 
-void loop() {
-  sensors.requestTemperatures(); 
-  float temperatureC = sensors.getTempCByIndex(0);
-  float temperatureF = sensors.getTempFByIndex(0);
-  Serial.print(temperatureC);
-  Serial.println("ºC");
-  Serial.print(temperatureF);
-  Serial.println("ºF");
-  delay(5000);
-  Serial.println("test2");
+void loop()
+{
+  //Dans cet exemple j'utilise la broche tactile D4 pour faire un reset des paramètres de connexion.
+  if(touchRead(T0) < 50)
+  {
+    Serial.println("Suppression des reglages et redemarrage...");
+    wm.resetSettings();
+    ESP.restart();
+  }
 }
