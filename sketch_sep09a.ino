@@ -1,10 +1,20 @@
+#include <Wire.h>
 #include <WiFiManager.h>
 #include <WebServer.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 WiFiManager wm;
 const char* ssid = "test";
 const char* password = "cegenredemdp";
 WebServer server(80);
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 const int led = 2;
 bool etatLed = 0;
@@ -35,7 +45,7 @@ void handleRoot()
     page += "        <i>Créé par Mathieu VIEL</i>";
     page += "    </div>";
 
-    page += "</body>";
+    page += "</body>"; 
 
     page += "</html>";
     
@@ -49,6 +59,7 @@ void handleOn()
     digitalWrite(led, HIGH);
     server.sendHeader("Location","/");
     server.send(303);
+    testdrawchar(etatLed);
 }
 
 void handleOff()
@@ -57,12 +68,33 @@ void handleOff()
     digitalWrite(led, LOW);
     server.sendHeader("Location","/");
     server.send(303);
+    testdrawchar(etatLed);
 }
 
 
 void handleNotFound()
 {
     server.send(404, "text/plain", "404: Not found");
+}
+
+void testdrawchar(int led) {
+  display.clearDisplay();
+
+  display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE); // Draw white text
+  display.setCursor(1, 0);     // Start at top-left corner
+  display.cp437(true);         // Use full 256 char 'Code Page 437' font
+
+  if(led == 0){
+    display.write("Etat de la led: ETeinte");
+  }
+  else{
+    display.write("Etat de la led: Alumer");
+  }
+  
+
+  display.display();
+  delay(2000);
 }
 
 void setup()
@@ -72,6 +104,16 @@ void setup()
   Serial.begin(115200);
   delay(1000);
   Serial.println("\n");
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+   display.display();
+   // Clear the buffer
+  display.clearDisplay();
+  display.display();
+  testdrawchar(0);
 
   pinMode(led, OUTPUT);
   digitalWrite(led, LOW);
