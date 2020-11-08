@@ -19,8 +19,11 @@ AsyncWebServer server(80);
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-char* temp = "20";
-char* heurePompe = "60";
+String temp = "20";
+String heurePompe = "60";
+
+const char* PARAM_INPUT_1 = "temp";
+const char* PARAM_INPUT_2 = "heure";
 
 const char index_html[] PROGMEM = R"rawliteral(
 <html lang='fr'>
@@ -34,7 +37,6 @@ const char index_html[] PROGMEM = R"rawliteral(
             padding-left: 20%;
             padding-right: 20%;
         }
-
         h1 {
             text-align: center;
         }
@@ -43,7 +45,6 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
     </style>
 </head>
-
 <body>
     <div class='w3-card w3-blue w3-padding-small w3-jumbo w3-center'>
         <h1>AQUARIUM CONNECTE</h1>
@@ -72,16 +73,14 @@ const char index_html[] PROGMEM = R"rawliteral(
         </form>
         
     </div>
-
 </body>
-
 </html>)rawliteral";
 
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
-void testdrawchar(char* temp, char* heurePompe) {
+void testdrawchar(String temp, String heurePompe) {
   display.clearDisplay();
 
   display.setTextSize(1);      // Normal 1:1 pixel scale
@@ -90,7 +89,7 @@ void testdrawchar(char* temp, char* heurePompe) {
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
   display.write("Adresse ip :\r\n 192.168.0.4 \r\n");
-  display.write("Temperature :\r\n " . temp ."deg \r\n");
+  display.write("Temperature :\r\n deg \r\n");
   display.write("Prochaine activation de la pompe :\r\n \r\n");
   
 
@@ -116,8 +115,6 @@ void setup()
   display.display();
   testdrawchar(temp, heurePompe);
 
-  pinMode(led, OUTPUT);
-  digitalWrite(led, LOW);
 
   if(!wm.autoConnect(ssid, password))
     Serial.println("Erreur de connexion.");
@@ -127,9 +124,15 @@ void setup()
   server.begin();
 
   Serial.println("Serveur web actif!");
+  
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html);
     });
+  server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
+      temp = request->getParam(PARAM_INPUT_1)->value();
+
+      heurePompe = request->getParam(PARAM_INPUT_2)->value();
+  });
 }
 
 void loop(){
