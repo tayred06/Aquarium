@@ -1,13 +1,16 @@
-#include <Wire.h>
 #include <WiFiManager.h>
 #include <WebServer.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+  
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
 WiFiManager wm;
 const char* ssid = "test";
 const char* password = "cegenredemdp";
-WebServer server(80);
+AsyncWebServer server(80);
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -16,68 +19,69 @@ WebServer server(80);
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-const int led = 2;
-bool etatLed = 0;
-char texteEtatLed[2][10] = {"ÉTEINTE!","ALLUMÉE!"};
+char* temp = "20";
+char* heurePompe = "60";
 
-void handleRoot()
-{
-    String page = "<!DOCTYPE html>";
-    page += "<html lang='fr'>";
-    page += "<head>";
-    page += "    <title>Serveur ESP32</title>";
-    page += "    <meta http-equiv='refresh' content='60' name='viewport' content='width=device-width, initial-scale=1' charset='UTF-8' />";
-    page += "    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>";
-    page += "</head>";
+const char index_html[] PROGMEM = R"rawliteral(
+<html lang='fr'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Aquarium Connecté</title>
+    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>
+    <style>
+        #corp {
+            padding-left: 20%;
+            padding-right: 20%;
+        }
 
-    page += "<body>";
-    page += "    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3-center'>";
-    page += "        <p>ÉTAT LED: "; page += texteEtatLed[etatLed]; + "</p>";
-    page += "    </div>";
+        h1 {
+            text-align: center;
+        }
+        select {
+            width: 50px!important;
+        }
+    </style>
+</head>
 
-    page += "    <div class='w3-bar'>";
-    page += "        <a href='/on' class='w3-bar-item w3-button w3-border w3-jumbo' style='width:50%; height:50%;'>ON</a>";
-    page += "        <a href='/off' class='w3-bar-item w3-button w3-border w3-jumbo' style='width:50%; height:50%;'>OFF</a>";
-    page += "    </div>";
+<body>
+    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3-center'>
+        <h1>AQUARIUM CONNECTE</h1>
+    </div>
+    <br>
+    <div id='corp'>
+        <form action='/get'>
+            <p>Température: + temp +</p>
+            <p>Changer la température : <input type='number' name='temp' id='temp' style='width:75px;'></p>
+            <br>
+            <p>Etat de la pompe: </p>
+            <p>Activer la pompe (15 minutes) tout les 
+                <select class='w3-select' name='heure' id='heure'>
+                    <option value='10'>10</option>
+                    <option value='20'>20</option>
+                    <option value='30'>30</option>
+                    <option value='40'>40</option>
+                    <option value='50'>50</option>
+                    <option value='60'>60</option>
+                    <option value='70'>70</option>
+                    <option value='80'>80</option>
+                    <option value='90'>90</option>
+                </select>
+             minutes</p>
+             <button class='w3-btn w3-blue w3-block'>Appliquer</button>
+        </form>
+        
+    </div>
 
-    page += "    <div class='w3-center w3-padding-16'>";
-    page += "        <p>Ce serveur est hébergé sur un ESP32</p>";
-    page += "        <i>Créé par Mathieu VIEL</i>";
-    page += "    </div>";
+</body>
 
-    page += "</body>"; 
+</html>)rawliteral";
 
-    page += "</html>";
-    
-    server.setContentLength(page.length());
-    server.send(200, "text/html", page);
+void notFound(AsyncWebServerRequest *request) {
+  request->send(404, "text/plain", "Not found");
 }
 
-void handleOn()
-{
-    etatLed = 1;
-    digitalWrite(led, HIGH);
-    server.sendHeader("Location","/");
-    server.send(303);
-    testdrawchar(etatLed);
-}
-
-void handleOff()
-{
-    etatLed = 0;
-    digitalWrite(led, LOW);
-    server.sendHeader("Location","/");
-    server.send(303);
-    testdrawchar(etatLed);
-}
-
-
-void handleNotFound()
-{
-    server.send(404, "text/plain", "404: Not found");
-}
-
-void testdrawchar(int led) {
+void testdrawchar(char* temp, char* heurePompe) {
   display.clearDisplay();
 
   display.setTextSize(1);      // Normal 1:1 pixel scale
@@ -85,12 +89,9 @@ void testdrawchar(int led) {
   display.setCursor(1, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  if(led == 0){
-    display.write("Etat de la led: ETeinte");
-  }
-  else{
-    display.write("Etat de la led: Alumer");
-  }
+  display.write("Adresse ip :\r\n 192.168.0.4 \r\n");
+  display.write("Temperature :\r\n " . temp ."deg \r\n");
+  display.write("Prochaine activation de la pompe :\r\n \r\n");
   
 
   display.display();
@@ -109,11 +110,11 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-   display.display();
-   // Clear the buffer
+  display.display();
+  // Clear the buffer
   display.clearDisplay();
   display.display();
-  testdrawchar(0);
+  testdrawchar(temp, heurePompe);
 
   pinMode(led, OUTPUT);
   digitalWrite(led, LOW);
@@ -123,13 +124,12 @@ void setup()
   else
     Serial.println("Connexion etablie!");
 
-  server.on("/", handleRoot);
-  server.on("/on", handleOn);
-  server.on("/off", handleOff);
-  server.onNotFound(handleNotFound);
   server.begin();
 
   Serial.println("Serveur web actif!");
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html);
+    });
 }
 
 void loop(){
@@ -141,5 +141,4 @@ void loop(){
     ESP.restart();
   }
 
-  server.handleClient();
 }
