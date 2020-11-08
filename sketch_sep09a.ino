@@ -1,34 +1,24 @@
-/*********
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com  
-*********/
-
 #include <OneWire.h>
 #include <DallasTemperature.h>
-
-// GPIO where the DS18B20 is connected to
-const int oneWireBus = 4;     
-
-// Setup a oneWire instance to communicate with any OneWire devices
-OneWire oneWire(oneWireBus);
-
-// Pass our oneWire reference to Dallas Temperature sensor 
+#define ONE_WIRE_BUS 25
+ 
+OneWire oneWire(ONE_WIRE_BUS);
+ 
 DallasTemperature sensors(&oneWire);
-
-void setup() {
-  // Start the Serial Monitor
-  Serial.begin(115200);
-  // Start the DS18B20 sensor
+ 
+void setup(void)
+{
+  Serial.begin(9600);
   sensors.begin();
 }
 
-void loop() {
+void loop(void){ 
   sensors.requestTemperatures(); 
-  float temperatureC = sensors.getTempCByIndex(0);
-  float temperatureF = sensors.getTempFByIndex(0);
-  Serial.print(temperatureC);
-  Serial.println("ºC");
-  Serial.print(temperatureF);
-  Serial.println("ºF");
-  delay(5000);
+  Serial.print("temperature: ");
+  Serial.print(sensors.getTempCByIndex(0));
+  Serial.print("C");
+  Serial.print("temperature: ");
+  Serial.println(sensors.getTempFByIndex(0));
+  Serial.print("F");
+  delay(1000);
 }
