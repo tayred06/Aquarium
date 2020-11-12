@@ -1,13 +1,25 @@
-#include <Wire.h>
 #include <WiFiManager.h>
 #include <WebServer.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+  
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#define ONE_WIRE_BUS 25
+
+#include <sstream>
+ 
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 WiFiManager wm;
 const char* ssid = "test";
 const char* password = "cegenredemdp";
-WebServer server(80);
+AsyncWebServer server(80);
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -16,85 +28,108 @@ WebServer server(80);
 #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-const int led = 2;
-bool etatLed = 0;
-char texteEtatLed[2][10] = {"ÉTEINTE!","ALLUMÉE!"};
+const int LED = 2;
 
-void handleRoot()
-{
-    String page = "<!DOCTYPE html>";
-    page += "<html lang='fr'>";
-    page += "<head>";
-    page += "    <title>Serveur ESP32</title>";
-    page += "    <meta http-equiv='refresh' content='60' name='viewport' content='width=device-width, initial-scale=1' charset='UTF-8' />";
-    page += "    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>";
-    page += "</head>";
+unsigned int compteur = 0;
 
-    page += "<body>";
-    page += "    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3-center'>";
-    page += "        <p>ÉTAT LED: "; page += texteEtatLed[etatLed]; + "</p>";
-    page += "    </div>";
+String tempVoulu = "25";
+String heurePompe = "360";
 
-    page += "    <div class='w3-bar'>";
-    page += "        <a href='/on' class='w3-bar-item w3-button w3-border w3-jumbo' style='width:50%; height:50%;'>ON</a>";
-    page += "        <a href='/off' class='w3-bar-item w3-button w3-border w3-jumbo' style='width:50%; height:50%;'>OFF</a>";
-    page += "    </div>";
+const char* PARAM_INPUT_1 = "temp";
+const char* PARAM_INPUT_2 = "heure";
 
-    page += "    <div class='w3-center w3-padding-16'>";
-    page += "        <p>Ce serveur est hébergé sur un ESP32</p>";
-    page += "        <i>Créé par Mathieu VIEL</i>";
-    page += "    </div>";
+const char index_html[] PROGMEM = R"rawliteral(
+<html lang='fr'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Aquarium Connecté</title>
+    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>
+    <style>
+        #corp {
+            padding-left: 20%;
+            padding-right: 20%;
+        }
+        h1 {
+            text-align: center;
+        }
+        select {
+            width: 50px!important;
+        }
+    </style>
+</head>
+<body>
+    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3-center'>
+        <h1>AQUARIUM CONNECTE</h1>
+    </div>
+    <br>
+    <div id='corp'>
+        <form action='/get'>
+            <p>Changer la température : <input type='number' name='temp' id='temp' style='width:75px;'></p>
+            <br>
+            <p>Etat de la pompe: </p>
+            <p>Activer la pompe (15 minutes) tout les 
+                <select class='w3-select' name='heure' id='heure'>
+                    <option value='10'>10</option>
+                    <option value='20'>20</option>
+                    <option value='30'>30</option>
+                    <option value='40'>40</option>
+                    <option value='50'>50</option>
+                    <option value='60'>60</option>
+                    <option value='70'>70</option>
+                    <option value='80'>80</option>
+                    <option value='90'>90</option>
+                </select>
+             minutes</p>
+             <button class='w3-btn w3-blue w3-block'>Appliquer</button>
+        </form>
+        
+    </div>
+</body>
+</html>)rawliteral";
 
-    page += "</body>";
-
-    page += "</html>";
-    
-    server.setContentLength(page.length());
-    server.send(200, "text/html", page);
+void notFound(AsyncWebServerRequest *request) {
+  request->send(404, "text/plain", "Not found");
 }
 
-void handleOn()
-{
-    etatLed = 1;
-    digitalWrite(led, HIGH);
-    server.sendHeader("Location","/");
-    server.send(303);
-    testdrawchar(etatLed);
-}
-
-void handleOff()
-{
-    etatLed = 0;
-    digitalWrite(led, LOW);
-    server.sendHeader("Location","/");
-    server.send(303);
-    testdrawchar(etatLed);
-}
-
-
-void handleNotFound()
-{
-    server.send(404, "text/plain", "404: Not found");
-}
-
-void testdrawchar(int led) {
+void testdrawchar(float temp, String heurePompe) {
   display.clearDisplay();
-
+  delay(200);
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(1, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  if(led == 0){
-    display.write("Etat de la led: ETeinte");
-  }
-  else{
-    display.write("Etat de la led: Alumer");
-  }
+  display.print("Adresse ip: \r\n 192.168.105.203 \r\n");
+  display.print("Temperature: " + String(temp) + " deg \r\n");
+  display.print("Prochaine activation de la pompe: " + heurePompe + " minutes");
   
 
   display.display();
   delay(2000);
+}
+
+//void chauffe(int tempActuel, String tempVoulu){
+//  int value = atoi(tempVoulu.c_str());
+//  if(tempActuel <= value){
+//    digitalWrite(LED, HIGH);
+//  }
+//  else{
+//    digitalWrite(LED, LOW);
+//  }
+//}
+
+void activationPompe(int compteur, String heurePompe){
+  int value = atoi(heurePompe.c_str());
+  if (compteur < 90){
+    digitalWrite(LED, HIGH);
+  }
+  else if (compteur > 90) {
+    digitalWrite(LED, LOW);
+  }
+  else if (compteur < 1){
+    compteur = 90 + value;
+  }
 }
 
 void setup()
@@ -109,37 +144,44 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-   display.display();
-   // Clear the buffer
+  display.display();
+  // Clear the buffer
   display.clearDisplay();
   display.display();
-  testdrawchar(0);
-
-  pinMode(led, OUTPUT);
-  digitalWrite(led, LOW);
-
+  
   if(!wm.autoConnect(ssid, password))
     Serial.println("Erreur de connexion.");
   else
     Serial.println("Connexion etablie!");
 
-  server.on("/", handleRoot);
-  server.on("/on", handleOn);
-  server.on("/off", handleOff);
-  server.onNotFound(handleNotFound);
   server.begin();
 
   Serial.println("Serveur web actif!");
+  
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html);
+    });
+  server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    tempVoulu = request->getParam(PARAM_INPUT_1)->value();
+    heurePompe = request->getParam(PARAM_INPUT_2)->value();
+    request->send_P(200, "text/html", index_html);
+  });
+
+  pinMode(LED, OUTPUT);
 }
 
 void loop(){
-  //Dans cet exemple j'utilise la broche tactile D4 pour faire un reset des paramètres de connexion.
-  if(touchRead(T0) < 50)
-  {
-    Serial.println("Suppression des reglages et redemarrage...");
-    wm.resetSettings();
-    ESP.restart();
-  }
+  sensors.requestTemperatures(); 
+  Serial.print("temperature: ");
+  Serial.println(sensors.getTempCByIndex(0));
 
-  server.handleClient();
+  //chauffe(sensors.getTempCByIndex(0), tempVoulu);
+  testdrawchar(sensors.getTempCByIndex(0), heurePompe);
+  activationPompe(compteur, heurePompe);
+  
+  Serial.println(tempVoulu);
+  Serial.println(heurePompe);
+
+  delay(2000);
+
 }
