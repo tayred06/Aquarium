@@ -46,9 +46,9 @@ AsyncWebServer server(80);
 
 const int LedPin = 5;
 
-String tempVoulu = "30";
+String tempVoulu = "25";
 int temp = 0;
-String heurePompe = "15";
+String heurePompe = "600";
 String etatChauff = "";
 
 int compteur15 = 900;
@@ -166,7 +166,7 @@ void testdrawchar(float temp, String heurePompe, String IpA) {
 
   display.print("@ip : " + IpA + "\r\n");
   display.print("temp   Pompe   Chauff");
-  display.print(String(temp) + "   " + heurePompe + "   " + etatChauff);
+  display.print(String(temp) + "   " + heurePompe + " m    " + etatChauff);
   
 
   display.display();
@@ -264,9 +264,7 @@ void loop(){
   Serial.print("temperature: ");
   Serial.println(sensors.getTempCByIndex(0));
 
-  //affichage des nouvelles données sur l'ecran
-  etatChauff = chauffe(sensors.getTempCByIndex(0), tempVoulu);
-  testdrawchar(sensors.getTempCByIndex(0), heurePompe, String(WiFi.localIP()));
+  
 
   //modification du conpteur
   compteur = compteur - 1;
@@ -275,6 +273,11 @@ void loop(){
     compteur = 900 + pompeInt;
   }
   Serial.println(compteur);
+
+  //affichage des nouvelles données sur l'ecran
+  etatChauff = chauffe(sensors.getTempCByIndex(0), tempVoulu);
+  testdrawchar(sensors.getTempCByIndex(0), String(pompeInt / 60), String(WiFi.localIP()));
+  
   // check pour activation de la pompe
   activationPompe(compteur, heurePompe);
   
