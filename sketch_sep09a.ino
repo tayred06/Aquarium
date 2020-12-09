@@ -40,15 +40,15 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 //definition des variables
 
 WiFiManager wm;
-const char* ssid = "AquaConnect";
-const char* password = "Aquaconnect";
+const char* Ssid = "AquaConnect";
+const char* Password = "Aquaconnect";
 AsyncWebServer server(80);
 
-const int ledPin = 5;
+const int LedPin = 5;
 
 String tempVoulu = "30";
 int temp = 0;
-String heurePompe = "600";
+String heurePompe = "15";
 String etatChauff = "";
 
 int compteur15 = 900;
@@ -127,27 +127,27 @@ void create_json(char *tag, String value, char *unit) {
 
 //Fonction de retour des APIs
 void setup_routing() {
-  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/API/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get temperature");
     create_json("temp", String(temp), "°C");
     request->send_P(200, "application/json", buffer);
   });
-  server.on("/tempVoulu", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/API/tempVoulu", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get temperatureVoulu");
     create_json("tempVoulu", String(tempVoulu), "°C");
     request->send_P(200, "application/json", buffer);
   });
-  server.on("/etatPompe", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/API/etatPompe", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get etatPompe");
     create_json("etatPompe", String(etatChauff), "");
     request->send_P(200, "application/json", buffer);
   });
-  server.on("/heurePompe", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/API/heurePompe", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get heurePompe");
     create_json("heurePompe", String(heurePompe), "min");
     request->send_P(200, "application/json", buffer);
   });
-  server.on("/restPompe", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/API/restPompe", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get restPompe");
     create_json("restPompe", String(compteur), "sec");
     request->send_P(200, "application/json", buffer);
@@ -164,7 +164,7 @@ void testdrawchar(float temp, String heurePompe, String IpA) {
   display.setCursor(1, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  display.print("@ip : 192.168.105.203");
+  display.print("@ip : " + IpA + "\r\n");
   display.print("temp   Pompe   Chauff");
   display.print(String(temp) + "   " + heurePompe + "   " + etatChauff);
   
@@ -190,10 +190,10 @@ String chauffe(int tempActuel, String tempVoulu){
 void activationPompe(int compteur, String heurePompe){
   int value = atoi(heurePompe.c_str());
   if (compteur < 900){
-    digitalWrite (ledPin, HIGH);
+    digitalWrite (LedPin, HIGH);
   }
   else if (compteur > 900) {
-    digitalWrite (ledPin, LOW);
+    digitalWrite (LedPin, LOW);
   }
 }
 
@@ -212,7 +212,7 @@ void setup()
   }
   
   
-  if(!wm.autoConnect(ssid, password))
+  if(!wm.autoConnect(Ssid, Password))
     Serial.println("Erreur de connexion.");
   else
     Serial.println("Connexion etablie!");
@@ -247,10 +247,18 @@ void setup()
 
   setup_routing();  
 
-  pinMode (ledPin, OUTPUT);
+  pinMode (LedPin, OUTPUT);
 }
 
 void loop(){
+
+  /*if(touchRead(T0) < 50)
+  {
+    Serial.println("Suppression des reglages et redemarrage...");
+    wm.resetSettings();
+    ESP.restart();
+  }*/
+
 
   sensors.requestTemperatures(); 
   Serial.print("temperature: ");
@@ -264,7 +272,7 @@ void loop(){
   compteur = compteur - 1;
   int pompeInt = atoi(heurePompe.c_str());
   if (compteur < 11){
-    compteur = 900 + heurePompe;
+    compteur = 900 + pompeInt;
   }
   Serial.println(compteur);
   // check pour activation de la pompe
