@@ -1,3 +1,12 @@
+//...................................................................
+//Projet Aquarium connecté
+//Mathieu VIEL
+//Remise 09/12/2020
+//Lien git: https://github.com/tayred06/Aquarium
+//...................................................................
+
+
+//include des librairies
 #include <WiFiManager.h>
 #include <WebServer.h>
 #include <AsyncTCP.h>
@@ -21,21 +30,23 @@ char buffer[250];
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-WiFiManager wm;
-const char* ssid = "test";
-const char* password = "cegenredemdp";
-AsyncWebServer server(80);
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define OLED_RESET     4 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-const int LED = 2;
+//definition des variables
 
-String tempVoulu = "25";
+WiFiManager wm;
+const char* ssid = "AquaConnect";
+const char* password = "Aquaconnect";
+AsyncWebServer server(80);
+
+const int ledPin = 5;
+
+String tempVoulu = "30";
 int temp = 0;
 String heurePompe = "600";
 String etatChauff = "";
@@ -46,6 +57,7 @@ unsigned int compteur = 0;
 const char* PARAM_INPUT_1 = "temp";
 const char* PARAM_INPUT_2 = "heure";
 
+//code du site internet
 const char index_html[] PROGMEM = R"rawliteral(
 <html lang='fr'>
 <head>
@@ -75,9 +87,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     <br>
     <div id='corp'>
         <form action='/get'>
-            <p>Changer la température : <input type='number' name='temp' id='temp' style='width:75px;'></p>
+            <p>Changer la température (+ ou - 1°C) : <input type='number' value="25" name='temp' id='temp' style='width:75px;'></p>
             <br>
-            <p>Etat de la pompe: </p>
+            <p>Etat de la pompe: OFF </p>
             <p>Activer la pompe (15 minutes) tout les 
                 <select class='w3-select' name='heure' id='heure'>
                     <option value='600'>10</option>
@@ -102,6 +114,7 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
+//Fonction de creation de tableau JSON
 void create_json(char *tag, String value, char *unit) { 
   jsonDocument.clear(); 
   jsonDocument["type"] = tag;
@@ -112,6 +125,7 @@ void create_json(char *tag, String value, char *unit) {
   Serial.println(buffer);  
 }
 
+//Fonction de retour des APIs
 void setup_routing() {
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get temperature");
@@ -135,13 +149,14 @@ void setup_routing() {
   });
   server.on("/restPompe", HTTP_GET, [](AsyncWebServerRequest *request){
     Serial.println("Get restPompe");
-    create_json("restPompe", String(compteur), "min");
+    create_json("restPompe", String(compteur), "sec");
     request->send_P(200, "application/json", buffer);
   });
  
 }
 
-void testdrawchar(float temp, String heurePompe, String etatChauff, String IpA) {
+//Fonction pour afficher sur l'ecran oled
+void testdrawchar(float temp, String heurePompe, String IpA) {
   display.clearDisplay();
   delay(200);
   display.setTextSize(1);      // Normal 1:1 pixel scale
@@ -149,40 +164,42 @@ void testdrawchar(float temp, String heurePompe, String etatChauff, String IpA) 
   display.setCursor(1, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  display.print("@ip : "+ IpA +" \r\n");
-  display.print("Temperature: " + String(temp) + " C \r\n");
-  display.print("Prochaine activation de la pompe: " + heurePompe + " min \r\n");
-  display.print("Etat du chauffage: " + etatChauff);
+  display.print("@ip : 192.168.105.203");
+  display.print("temp   Pompe   Chauff");
+  display.print(String(temp) + "   " + heurePompe + "   " + etatChauff);
   
 
   display.display();
   delay(2000);
 }
 
+//Methode pour allumer / eteindre le chauffage
 String chauffe(int tempActuel, String tempVoulu){
   int value = atoi(tempVoulu.c_str());
   String etat = "";
   if(tempActuel < value){
-    etat = "En chauffe";
+    etat = "ON";
   }
   else{
-    etat = "En arret";
+    etat = "OFF";
   }
   return etat;
 }
 
+//Fonction pour activer la pompe
 void activationPompe(int compteur, String heurePompe){
   int value = atoi(heurePompe.c_str());
   if (compteur < 900){
-    digitalWrite(LED, HIGH);
+    digitalWrite (ledPin, HIGH);
   }
   else if (compteur > 900) {
-    digitalWrite(LED, LOW);
+    digitalWrite (ledPin, LOW);
   }
 }
 
 void setup()
 {
+  //connexion au reseau
   WiFi.mode(WIFI_STA);
 
   Serial.begin(115200);
@@ -193,10 +210,7 @@ void setup()
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-  display.display();
-  // Clear the buffer
-  display.clearDisplay();
-  display.display();
+  
   
   if(!wm.autoConnect(ssid, password))
     Serial.println("Erreur de connexion.");
@@ -218,7 +232,12 @@ void setup()
     request->send_P(200, "text/html", index_html);
   });
 
+  display.display();
+  // Netoyage de l'ecran
+  display.clearDisplay();
+  display.display();
 
+  //initialisation des composants
   sensors.requestTemperatures(); 
   temp = sensors.getTempCByIndex(0);
   
@@ -228,7 +247,7 @@ void setup()
 
   setup_routing();  
 
-  pinMode(LED, OUTPUT);
+  pinMode (ledPin, OUTPUT);
 }
 
 void loop(){
@@ -237,21 +256,24 @@ void loop(){
   Serial.print("temperature: ");
   Serial.println(sensors.getTempCByIndex(0));
 
-  
+  //affichage des nouvelles données sur l'ecran
   etatChauff = chauffe(sensors.getTempCByIndex(0), tempVoulu);
-  testdrawchar(sensors.getTempCByIndex(0), heurePompe, etatChauff, String(WiFi.localIP()));
-  compteur = compteur - 10;
+  testdrawchar(sensors.getTempCByIndex(0), heurePompe, String(WiFi.localIP()));
+
+  //modification du conpteur
+  compteur = compteur - 1;
   int pompeInt = atoi(heurePompe.c_str());
   if (compteur < 11){
-    compteur = 900 + pompeInt;
+    compteur = 900 + heurePompe;
   }
   Serial.println(compteur);
+  // check pour activation de la pompe
   activationPompe(compteur, heurePompe);
   
 
   Serial.println(tempVoulu);
   Serial.println(heurePompe);
 
-  delay(10000);
+  delay(1000);
 
 }
